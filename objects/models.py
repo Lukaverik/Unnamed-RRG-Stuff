@@ -1,13 +1,13 @@
 from typing import Dict, List, Callable
 
-from objects.definitions.enums import TensionEnum, DamageTypeEnum, DamageElementEnum
+from objects.definitions.enums import TensionEnum, DamageTypeEnum, DamageElementEnum, AllegianceEnum
 
 
 # Sets up standardized constructors to be used in each object.
 class Model:
     def __init__(self, *args, **kwargs):
         for field_name, field_value in kwargs.items():
-            setattr(self, f"{field_name}", field_value)
+            setattr(self, field_name, field_value)
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -28,14 +28,17 @@ class Statistic(Model):
     # The actual value of the Statistic after modifiers are applied
     value: int
 
-    def __init__(self, value):
-        super().__init__(base_value=value, value=value)
+    def __init__(self, value, base_value=None):
+        if base_value:
+            super().__init__(base_value=base_value, value=value)
+        else:
+            super().__init__(base_value=value, value=value)
 
     def __add__(self, value) -> 'Statistic':
-        return Statistic(value=self.value + value)
+        return Statistic(value=self.value + value, base_value=self.base_value)
 
     def __sub__(self, value) -> 'Statistic':
-        return Statistic(value=self.value - value)
+        return Statistic(value=self.value - value, base_value=self.base_value)
 
     def reset(self) -> None:
         self.value = self.base_value
@@ -44,10 +47,10 @@ class Statistic(Model):
 # HP is just a Statistic that has a bit more validation on it (can't be healed above max or brought below 0, etc.)
 class HP(Statistic):
     def __add__(self, value) -> 'HP':
-        return HP(value=min(self.value + value, self.base_value))
+        return HP(value=min(self.value + value, self.base_value), base_value=self.base_value)
 
     def __sub__(self, value) -> 'HP':
-        return HP(value=max(self.value - value, 0))
+        return HP(value=max(self.value - value, 0), base_value=self.base_value)
 
 
 """
@@ -142,6 +145,8 @@ class Item(Model):
 class Actor(Model):
     # The name of the Actor
     name: str
+    # The allegiance of the Actor
+    allegiance: AllegianceEnum
     # A dictionary mapped from stat name to Statistic
     # The list of standard Statistics and their purposes is listed above
     stats: Dict[str, Statistic] = {}
@@ -177,6 +182,7 @@ class Actor(Model):
                 self.lasting_effects.remove(effect)
                 effect.cleanse(target=self)
             else:
+                effect.duration = new_duration
                 effect.apply(target=self)
         self.lasting_effects = sorted(self.lasting_effects, key=lambda x: x.is_multiplicative, reverse=True)
 
@@ -184,14 +190,16 @@ class Actor(Model):
 class Ally(Actor):
     # The number of total experience points the Ally has accrued
     exp: int
+    allegiance: AllegianceEnum = AllegianceEnum.Ally
 
 
 class Enemy(Actor):
     # The ratio applied against the enemy level to calc xp on defeat
-    xp_ratio: float
+    exp_ratio: float
     # The ratio applied against the enemy level to calc tension on defeat
     hype_ratio: float
     loot_table: Dict[float, Item]
+    allegiance = AllegianceEnum = AllegianceEnum.Enemy
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -204,5 +212,4 @@ class Enemy(Actor):
 
 
 class Combat(Model):
-    player_team: List[Ally]
-    enemy_team: List[Enemy]
+    combatants: List[Actor]

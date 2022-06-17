@@ -30,3 +30,9 @@ class DamageElementEnum(Enum):
     Ice = 9
     Dark = 10
     Light = 11
+
+
+# Holds possible values for an actor's "team"
+class AllegianceEnum(Enum):
+    Ally = 1
+    Enemy = 2
